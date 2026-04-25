@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Groove Shelf</title>
+<link href="https://fonts.googleapis.com/css2?family=VT323&family=Special+Elite&family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: #0a0806;
+    font-family: 'Courier Prime', monospace;
+  }
+
+  #scene {
+    width: 100vw; height: 100vh;
+    position: relative;
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  #image-wrapper {
+    position: absolute;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: top left;
+  }
+
+  #backdrop {
+    position: absolute; inset: 0;
+    width: 1920px; height: 1080px;
+    display: block;
+  }
+
+  /* ── VHS LAYERS ── */
+  .scanlines {
+    position: fixed; inset: 0; z-index: 200; pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      transparent 0px, transparent 2px,
+      rgba(0,0,0,0.18) 2px, rgba(0,0,0,0.18) 4px
+    );
+    animation: scanroll 10s linear infinite;
+  }
+  @keyframes scanroll {
+    0%   { background-position: 0 0; }
+    100% { background-position: 0 120px; }
+  }
+
+  .vhs-chroma {
+    position: fixed; inset: 0; z-index: 201; pointer-events: none;
+    animation: chroma 0.12s steps(1) infinite;
+  }
+  @keyframes chroma {
+    0%,100% { box-shadow: inset 2px 0 0 rgba(255,0,0,0.07), inset -2px 0 0 rgba(0,0,255,0.07); }
+    33%     { box-shadow: inset 1px 0 0 rgba(255,0,0,0.05), inset -3px 0 0 rgba(0,0,255,0.09); }
+    66%     { box-shadow: inset 3px 0 0 rgba(255,0,0,0.09), inset -1px 0 0 rgba(0,0,255,0.05); }
+  }
+
+  .vhs-glitch {
+    position: fixed; inset: 0; z-index: 202; pointer-events: none;
+    animation: vglitch 7s steps(1) infinite;
+  }
+  @keyframes vglitch {
+    0%,91%,100% { opacity:0; transform:none; }
+    92% { opacity:1; background:linear-gradient(transparent 35%, rgba(255,255,255,0.035) 35.4%, transparent 36%); transform:translateY(-2px) skewX(0.4deg); }
+    93% { opacity:1; background:linear-gradient(transparent 62%, rgba(255,255,255,0.025) 62.5%, transparent 63%); transform:translateY(1px) skewX(-0.2deg); }
+    94% { opacity:0; }
+  }
+
+  .vignette {
+    position: fixed; inset: 0; z-index: 199; pointer-events: none;
+    background: radial-gradient(ellipse at center,
+      transparent 50%,
+      rgba(0,0,0,0.5) 100%
+    );
+  }
+
+  /* ── VHS HUD ── */
+  .vhs-hud {
+    position: fixed; z-index: 300; pointer-events: none;
+    font-family: 'VT323', monospace;
+    letter-spacing: 2px;
+  }
+  .vhs-hud.top-left  { top:14px; left:18px; font-size:20px; color:rgba(255,220,70,0.75); text-shadow:0 0 10px rgba(255,200,0,0.5); }
+  .vhs-hud.top-right { top:14px; right:18px; font-size:16px; color:rgba(255,255,255,0.55); text-shadow:0 0 6px rgba(255,255,255,0.3); }
+  .vhs-hud.bot-left  { bottom:14px; left:18px; font-size:15px; color:rgba(80,255,160,0.65); text-shadow:0 0 6px rgba(50,255,130,0.4); }
+
+  /* ── HOTSPOTS ── */
+  .hotspot-layer {
+    position: absolute; inset: 0; z-index: 100;
+  }
+
+  .hotspot {
+    position: absolute;
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 2px;
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    background: transparent;
+  }
+
+  /* subtle idle pulse to hint clickability */
+  .hotspot::after {
+    content: '';
+    position: absolute; inset: -4px;
+    border-radius: 3px;
+    border: 1px solid rgba(255,240,160,0);
+    animation: pulse-ring 3.5s ease-in-out infinite;
+  }
+  @keyframes pulse-ring {
+    0%,100% { border-color: rgba(255,240,160,0);    box-shadow: none; }
+    50%      { border-color: rgba(255,240,160,0.22); box-shadow: 0 0 12px rgba(255,220,80,0.12); }
+  }
+
+  /* ── TOOLTIP ── */
+  #tooltip {
+    position: fixed; z-index: 400; pointer-events: none;
+    font-family: 'VT323', monospace; font-size:17px;
+    color: rgba(255,248,190,0.95);
+    background: rgba(8,5,2,0.9);
+    border: 1px solid rgba(245,200,66,0.45);
+    padding: 4px 12px; border-radius: 2px;
+    display: none;
+    text-shadow: 0 0 8px rgba(245,200,66,0.5);
+    white-space: nowrap;
+  }
+
+  /* ── MODAL ── */
+  #modal-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(4,2,1,0.72);
+    display: none; align-items: center; justify-content: center;
+  }
+  #modal-overlay.open { display: flex; animation: mfade 0.25s ease; }
+  @keyframes mfade { from { opacity:0; } to { opacity:1; } }
+
+  .modal-card {
+    position: relative;
+    background: linear-gradient(145deg, #231208, #160d06);
+    border: 1px solid #7a4820;
+    border-radius: 3px;
+    padding: 30px 32px;
+    width: min(500px, 92vw);
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow:
+      0 0 60px rgba(180,110,30,0.12),
+      inset 0 1px 0 rgba(255,200,100,0.08);
+    color: #f0e8d0;
+  }
+
+  .modal-close {
+    position: absolute; top:10px; right:14px;
+    background:none; border:none; cursor:pointer;
+    font-family:'VT323',monospace; font-size:30px;
+    color:rgba(245,200,66,0.65);
+    transition:color 0.2s;
+  }
+  .modal-close:hover { color:#f5c842; }
+
+  .modal-top { display:flex; gap:20px; align-items:flex-start; margin-bottom:16px; }
+
+  .modal-art {
+    width:110px; height:110px; flex-shrink:0;
+    border-radius:2px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  }
+
+  .modal-info { flex:1; }
+
+  .modal-badge {
+    display:inline-block;
+    font-family:'VT323',monospace; font-size:13px;
+    padding:2px 8px; margin-bottom:8px;
+    border:1px solid rgba(245,200,66,0.4);
+    color:rgba(245,200,66,0.8); border-radius:2px;
+  }
+
+  .modal-title {
+    font-family:'Special Elite',serif; font-size:22px;
+    color:#f5c842; margin-bottom:4px;
+    text-shadow:0 0 18px rgba(245,200,66,0.28);
+    line-height:1.2;
+  }
+
+  .modal-artist {
+    font-size:12px; color:rgba(240,232,208,0.65);
+    letter-spacing:1.5px; text-transform:uppercase;
+    margin-bottom:10px;
+  }
+
+  .modal-meta {
+    display:flex; gap:12px; flex-wrap:wrap;
+    font-family:'VT323',monospace; font-size:15px;
+    color:rgba(200,160,80,0.7);
+  }
+
+  /* Star rating */
+  .star-rating {
+    display:flex; gap:2px; margin-top:2px;
+  }
+  .star-rating span {
+    font-size:18px; line-height:1;
+    text-shadow: 0 0 8px rgba(245,200,66,0.6);
+  }
+  .star-on  { color:#f5c842; }
+  .star-half { color:#f5c842; opacity:0.55; }
+  .star-off { color:rgba(245,200,66,0.2); }
+
+  .modal-divider {
+    border:none; border-top:1px solid rgba(106,64,32,0.5);
+    margin:14px 0;
+  }
+
+  .modal-review {
+    font-size:13px; line-height:1.8;
+    color:rgba(240,232,208,0.82);
+  }
+
+  /* ── ABOUT MODAL ── */
+  #about-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    background: rgba(4,2,1,0.72);
+    display: none; align-items: center; justify-content: center;
+  }
+  #about-overlay.open { display: flex; animation: mfade 0.25s ease; }
+
+  .about-card {
+    position: relative;
+    background: linear-gradient(145deg, #1a0e06, #120908);
+    border: 1px solid #7a4820;
+    border-radius: 3px;
+    padding: 36px 40px;
+    width: min(620px, 92vw);
+    box-shadow: 0 0 60px rgba(180,110,30,0.12), inset 0 1px 0 rgba(255,200,100,0.08);
+    color: #f0e8d0;
+  }
+
+  .about-title {
+    font-family:'Special Elite',serif; font-size:22px;
+    color:#f5c842; margin-bottom:4px;
+    text-shadow:0 0 18px rgba(245,200,66,0.28);
+  }
+
+  .about-subtitle {
+    font-family:'VT323',monospace; font-size:13px;
+    letter-spacing:2px; color:rgba(245,200,66,0.5);
+    text-transform:uppercase; margin-bottom:28px;
+  }
+
+  .about-grid {
+    display:grid; grid-template-columns: repeat(4,1fr);
+    gap:20px;
+  }
+
+  .about-member { text-align:center; }
+
+  .about-photo {
+    width:90px; height:90px;
+    border-radius:50%;
+    object-fit:cover;
+    border:2px solid rgba(245,200,66,0.35);
+    box-shadow:0 0 14px rgba(245,200,66,0.1);
+    margin:0 auto 10px;
+    display:block;
+  }
+
+  .about-name {
+    font-family:'Special Elite',serif; font-size:13px;
+    color:#f5c842; margin-bottom:5px;
+  }
+
+  .about-email {
+    font-family:'VT323',monospace; font-size:12px;
+    color:rgba(240,232,208,0.55); letter-spacing:0.5px;
+    word-break:break-all; line-height:1.4;
+  }
+
+  /* ── IDLE GLOW on all hotspots ── */
+  .hotspot {
+    box-shadow: 0 0 8px 2px rgba(255,230,100,0.18), inset 0 0 8px rgba(255,220,80,0.04);
+  }
+  .hotspot:hover {
+    border-color: rgba(255,245,180,0.75);
+    box-shadow:
+      0 0 14px 5px rgba(255,240,160,0.55),
+      0 0 36px 12px rgba(255,220,100,0.2),
+      inset 0 0 20px rgba(255,240,160,0.06);
+    transform: scale(1.03);
+  }
+
+  /* ── WELCOME CARDS ── */
+  #welcome-overlay {
+    position: fixed; inset: 0; z-index: 900;
+    background: rgba(4,2,1,0.88);
+    display: flex; align-items: center; justify-content: center;
+    animation: mfade 0.6s ease;
+  }
+
+  .welcome-card {
+    position: relative;
+    background: linear-gradient(145deg, #231208, #160d06);
+    border: 1px solid #7a4820;
+    border-radius: 3px;
+    padding: 44px 48px;
+    width: min(560px, 92vw);
+    box-shadow: 0 0 80px rgba(180,110,30,0.15), inset 0 1px 0 rgba(255,200,100,0.08);
+    color: #f0e8d0;
+  }
+
+  .welcome-eyebrow {
+    font-family:'VT323',monospace; font-size:13px;
+    letter-spacing:2.5px; color:rgba(245,200,66,0.5);
+    text-transform:uppercase; margin-bottom:14px;
+  }
+
+  .welcome-heading {
+    font-family:'Special Elite',serif; font-size:26px;
+    color:#f5c842; margin-bottom:20px; line-height:1.2;
+    text-shadow:0 0 24px rgba(245,200,66,0.2);
+  }
+
+  .welcome-body {
+    font-size:14px; line-height:1.85;
+    color:rgba(240,232,208,0.82);
+    margin-bottom:32px;
+  }
+
+  .welcome-body p + p { margin-top:12px; }
+
+  .welcome-btn {
+    display:inline-block;
+    font-family:'VT323',monospace; font-size:16px;
+    letter-spacing:2px; text-transform:uppercase;
+    padding:8px 24px;
+    background: transparent;
+    border: 1px solid rgba(245,200,66,0.5);
+    color: rgba(245,200,66,0.85);
+    border-radius:2px; cursor:pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .welcome-btn:hover {
+    background: rgba(245,200,66,0.12);
+    border-color: rgba(245,200,66,0.9);
+    color: #f5c842;
+  }
+
+  .welcome-step {
+    font-family:'VT323',monospace; font-size:13px;
+    color:rgba(245,200,66,0.35); letter-spacing:1px;
+    position:absolute; bottom:20px; right:24px;
+  }
+
+  /* ── NOW PLAYING PLAYER ── */
+  #now-playing {
+    position: fixed; bottom: 20px; right: 20px; z-index: 350;
+    background: linear-gradient(145deg, rgba(22,10,4,0.92), rgba(12,6,2,0.95));
+    border: 1px solid rgba(122,72,32,0.7);
+    border-radius: 4px;
+    padding: 12px 16px;
+    width: 240px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 24px rgba(180,110,30,0.15), inset 0 1px 0 rgba(255,200,100,0.06);
+    display: none; /* hidden until a track plays */
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  #now-playing.visible { display: flex; }
+
+  #np-label {
+    font-family: 'VT323', monospace;
+    font-size: 11px; letter-spacing: 2px;
+    color: rgba(245,200,66,0.45);
+    text-transform: uppercase;
+  }
+
+  #np-title {
+    font-family: 'Special Elite', serif;
+    font-size: 14px;
+    color: #f5c842;
+    line-height: 1.3;
+    text-shadow: 0 0 12px rgba(245,200,66,0.2);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  #np-artist {
+    font-family: 'VT323', monospace;
+    font-size: 12px; letter-spacing: 1px;
+    color: rgba(240,232,208,0.5);
+    text-transform: uppercase;
+    margin-top: -6px;
+  }
+
+  #np-controls {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  #np-playpause {
+    background: none; border: 1px solid rgba(245,200,66,0.4);
+    color: rgba(245,200,66,0.85);
+    font-size: 14px; width: 30px; height: 30px;
+    border-radius: 50%; cursor: pointer; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  #np-playpause:hover {
+    background: rgba(245,200,66,0.12);
+    border-color: rgba(245,200,66,0.85);
+  }
+
+  #np-volume-wrap {
+    display: flex; align-items: center; gap: 6px; flex: 1;
+  }
+
+  #np-vol-icon {
+    font-size: 13px; color: rgba(245,200,66,0.45); flex-shrink: 0;
+  }
+
+  #np-volume {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1; height: 3px;
+    background: rgba(245,200,66,0.2);
+    border-radius: 2px; outline: none; cursor: pointer;
+  }
+  #np-volume::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #f5c842;
+    box-shadow: 0 0 6px rgba(245,200,66,0.5);
+    cursor: pointer;
+  }
+  #np-volume::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: #f5c842; border: none;
+    box-shadow: 0 0 6px rgba(245,200,66,0.5);
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<div id="scene">
+
+  <div id="image-wrapper">
+    <img id="backdrop" src="backdrop.png" alt="The Groove Shelf">
+
+    <div class="hotspot-layer">
+      <div class="hotspot" data-id="1" style="left:399px; top:322px; width:141px; height:108px;"></div>
+      <div class="hotspot" data-id="2" style="left:568px; top:322px; width:118px; height:108px;"></div>
+      <div class="hotspot" data-id="3" style="left:720px; top:322px; width:122px; height:110px;"></div>
+      <div class="hotspot" data-id="4" style="left:1179px; top:322px; width:116px; height:107px;"></div>
+      <div class="hotspot" data-id="about" style="left:1065px; top:850px; width:170px; height:65px;"></div>
+    </div>
+  </div>
+
+  <div class="vignette"></div>
+
+  <!-- VHS EFFECTS -->
+  <div class="scanlines"></div>
+  <div class="vhs-chroma"></div>
+  <div class="vhs-glitch"></div>
+
+  <!-- HUD -->
+  <div class="vhs-hud top-left" id="timecode">SP ◉ REC &nbsp;00:00:00</div>
+  <div class="vhs-hud top-right">THE GROOVE SHELF</div>
+  <div class="vhs-hud bot-left" id="datestamp">-- --- ----</div>
+
+</div>
+
+<!-- AUDIO -->
+<audio id="snd-insert" src="music/insert.mp3" preload="auto"></audio>
+
+<!-- WELCOME OVERLAY -->
+<div id="welcome-overlay">
+  <div class="welcome-card" id="welcome-card">
+    <div class="welcome-eyebrow" id="welcome-eyebrow">Welcome</div>
+    <div class="welcome-heading" id="welcome-heading">The Groove Shelf</div>
+    <div class="welcome-body" id="welcome-body"></div>
+    <button class="welcome-btn" id="welcome-btn" onclick="nextWelcome()"></button>
+    <div class="welcome-step" id="welcome-step">1 / 2</div>
+  </div>
+</div>
+
+<div id="tooltip"></div>
+
+<!-- NOW PLAYING PLAYER -->
+<div id="now-playing">
+  <div id="np-label">▶ NOW PLAYING</div>
+  <div id="np-title">—</div>
+  <div id="np-artist">—</div>
+  <div id="np-controls">
+    <button id="np-playpause" onclick="togglePlayPause()">⏸</button>
+    <div id="np-volume-wrap">
+      <span id="np-vol-icon">🔈</span>
+      <input id="np-volume" type="range" min="0" max="1" step="0.01" value="0.75"
+             oninput="setMasterVolume(this.value)">
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY CARD MODAL -->
+<div id="modal-overlay">
+  <div class="modal-card">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+
+    <!-- Read Full Review banner-->
+    <div id="review-banner" onclick="openBlog(currentAlbumId)" style="
+      cursor:pointer;
+      background: linear-gradient(90deg, rgba(245,200,66,0.08), rgba(245,200,66,0.15), rgba(245,200,66,0.08));
+      border: 1px solid rgba(245,200,66,0.35);
+      border-radius:2px;
+      padding:8px 14px;
+      margin-bottom:18px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      transition: background 0.2s, border-color 0.2s;
+    " onmouseover="this.style.background='linear-gradient(90deg,rgba(245,200,66,0.15),rgba(245,200,66,0.28),rgba(245,200,66,0.15))';this.style.borderColor='rgba(245,200,66,0.7)'"
+       onmouseout="this.style.background='linear-gradient(90deg,rgba(245,200,66,0.08),rgba(245,200,66,0.15),rgba(245,200,66,0.08))';this.style.borderColor='rgba(245,200,66,0.35)'">
+      <span style="font-family:'VT323',monospace;font-size:15px;color:rgba(245,200,66,0.85);letter-spacing:1.5px;">
+        ▶ &nbsp;READ FULL MUSIC REVIEW
+      </span>
+      <span style="font-family:'VT323',monospace;font-size:13px;color:rgba(245,200,66,0.5);letter-spacing:1px;">
+        BLOG →
+      </span>
+    </div>
+
+    <div class="modal-top">
+      <div class="modal-art" id="modal-art"></div>
+      <div class="modal-info">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+          <div>
+            <div class="modal-badge" id="modal-genre">GENRE</div>
+            <div class="modal-title" id="modal-title">Album</div>
+            <div class="modal-artist" id="modal-artist">Artist</div>
+          </div>
+          <div class="star-rating" id="modal-rating"></div>
+        </div>
+        <div class="modal-meta">
+          <span id="modal-year"></span>
+          <span>·</span>
+          <span id="modal-label"></span>
+          <span>·</span>
+          <span id="modal-tracks"></span>
+        </div>
+        <a id="modal-spotify" href="#" target="_blank" rel="noopener" style="
+          display:inline-flex; align-items:center; gap:7px;
+          margin-top:12px;
+          font-family:'VT323',monospace; font-size:14px; letter-spacing:1.5px;
+          color:rgba(255,255,255,0.8);
+          background:#1DB954; border-radius:20px;
+          padding:5px 14px; text-decoration:none;
+          transition:background 0.2s,transform 0.15s;
+        " onmouseover="this.style.background='#1ed760';this.style.transform='scale(1.04)'"
+           onmouseout="this.style.background='#1DB954';this.style.transform='scale(1)'">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
+          LISTEN ON SPOTIFY
+        </a>
+      </div>
+    </div>
+    <hr class="modal-divider">
+
+    <!-- Album Description -->
+    <div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.6);margin-bottom:6px;text-transform:uppercase;">Album Description</div>
+    <div class="modal-review" id="modal-description"></div>
+    <hr class="modal-divider">
+
+    <!-- Album Review excerpt -->
+    <div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.6);margin-bottom:6px;text-transform:uppercase;">Album Review</div>
+    <div class="modal-review" id="modal-review"></div>
+    <hr class="modal-divider">
+
+    <!-- Top Tracks -->
+    <div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.6);margin-bottom:8px;text-transform:uppercase;">Top Tracks</div>
+    <div id="modal-tracks-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <hr class="modal-divider">
+
+    <!-- Fun Facts -->
+    <div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.6);margin-bottom:8px;text-transform:uppercase;">Fun Facts</div>
+    <div id="modal-funfacts" style="font-size:13px;line-height:1.75;color:rgba(240,232,208,0.75);"></div>
+  </div>
+</div>
+
+<!-- BLOG REVIEW MODAL -->
+<div id="blog-overlay" style="
+  position:fixed;inset:0;z-index:600;
+  background:rgba(3,2,1,0.97);
+  display:none;overflow-y:auto;
+">
+  <div id="blog-inner" style="
+    max-width:720px;margin:0 auto;
+    padding:60px 40px 80px;
+    font-family:'Courier Prime',monospace;
+    color:#f0e8d0;
+  ">
+    <button onclick="closeBlog()" style="
+      background:none;border:1px solid rgba(245,200,66,0.4);
+      color:rgba(245,200,66,0.8);
+      font-family:'VT323',monospace;font-size:16px;
+      padding:4px 14px;border-radius:2px;cursor:pointer;
+      margin-bottom:40px;letter-spacing:1px;
+      transition:border-color 0.2s,color 0.2s;
+    " onmouseover="this.style.borderColor='rgba(245,200,66,0.9)';this.style.color='#f5c842'"
+       onmouseout="this.style.borderColor='rgba(245,200,66,0.4)';this.style.color='rgba(245,200,66,0.8)'">
+      ← BACK TO SHELF
+    </button>
+    <div id="blog-content"></div>
+  </div>
+</div>
+
+<!-- ABOUT MODAL -->
+<div id="about-overlay">
+  <div class="about-card">
+    <button class="modal-close" onclick="closeAbout()">✕</button>
+    <div class="about-title">About Us</div>
+    <div class="about-subtitle">The Groove Shelf · Music Reviews · Ateneo de Manila University</div>
+    <div class="about-grid">
+      <div class="about-member">
+        <img class="about-photo" src="author/apo.jpg" alt="Apo" onerror="this.style.background='linear-gradient(135deg,#3a2a1a,#1a1008)';this.src='';">
+        <div class="about-name">Apo</div>
+        <div class="about-email">mark.ting@student.ateneo.edu</div>
+      </div>
+      <div class="about-member">
+        <img class="about-photo" src="author/armand.JPG" alt="Armand" onerror="this.style.background='linear-gradient(135deg,#1a2a3a,#0e1820)';this.src='';">
+        <div class="about-name">Armand</div>
+        <div class="about-email">armand.sotelo@student.ateneo.edu</div>
+      </div>
+      <div class="about-member">
+        <img class="about-photo" src="author/jenny.jpg" alt="Jenny" onerror="this.style.background='linear-gradient(135deg,#2a1a3a,#100820)';this.src='';">
+        <div class="about-name">Jenny</div>
+        <div class="about-email">jennylou.batalla@student.ateneo.edu</div>
+      </div>
+      <div class="about-member">
+        <img class="about-photo" src="author/pia.JPG" alt="Pia" onerror="this.style.background='linear-gradient(135deg,#2a1a1a,#180808)';this.src='';">
+        <div class="about-name">Pia</div>
+        <div class="about-email">sofia.sanmiguel@student.ateneo.edu</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+
+// ── ALBUM DATA ──────────────────────────────
+const albums = {
+  1: {
+    title: "23",
+    artist: "HYUKOH",
+    year: "2017",
+    label: "Universal Music Korea",
+    tracks: "12 tracks",
+    genre: "INDIE ROCK",
+    rating: "4.5",
+    description: "What does it mean to be young at the exact moment you realize it will not last? That question sits at the center of 23, the first full-length album by South Korean indie rock band Hyukoh. Released on April 24, 2017, the record is the third installment in the band's age-named discography, following EPs 20 (2014) and 22 (2015). The album is a 12-track, trilingual project incorporating Korean, English, and Mandarin, spanning genres such as indie rock, surf rock, shoegaze, folk, and neo-psychedelia.",
+    reviewExcerpt: "Thematically, the album traces an emotional arc from the brittle bravado of early youth to grief, introspection, and, ultimately, cautious hope. It does not move through these states in a perfectly linear fashion — it lurches, doubles back, and surprises. The album opens with \"Burning Youth,\" a short track that wastes no time establishing its tone. Its first line, \"How will you survive the world full of anguish,\" reads like a thesis statement for what follows. Paradoxically, these lyrics are delivered over a bright, energetic arrangement — troubled on the inside, propulsive on the outside.",
+    topTracks: [
+      { rank: 1, title: "TOMBOY", desc: "One of the album's double title tracks and its commercial centerpiece, TOMBOY strips things down into something tender and aching. Oh Hyuk sings as if not performing but reflecting. The Korean lyrics carry a bittersweet self-awareness: \"I'm happy right now, so I'm nervous / Because the sea is always calm before the storm.\"" },
+      { rank: 2, title: "Tokyo Inn", desc: "Driven by a jangly electric guitar with a surf-rock shimmer, the song feels like the inside of a moving taxi at night — restless, untethered. The wordless \"woo-woo\" refrain is a dangerous earworm anchoring an otherwise melancholy meditation on aimless youth." },
+      { rank: 3, title: "Surf Boy", desc: "The album closes with bright, sun-soaked surf rock energy — vibrant, kinetic, and cheerful in a way that feels almost defiant. The lyrical message advocates for cautious optimism: hoping for the best while preparing for the worst." }
+    ],
+    funFacts: [
+      "The band name \"Hyukoh\" comes from a rearrangement of frontman Oh Hyuk's name, reflecting his central role in the group's sound and identity.",
+      "Oh Hyuk spent much of his early life in China before returning to South Korea, which is why the band's music often incorporates Korean, English, and Mandarin.",
+      "Hyukoh consists of Oh Hyuk (lead vocals, rhythm guitar, songwriter), Im Dong-geon (bass), Lim Hyun-jae (lead guitar), and Lee In-woo (drums), all born in the year 1993."
+    ],
+    spotify: "https://open.spotify.com/album/2VDNZYzubQxFNOR3qD1K9B?si=04fa8bedfcc0475f",
+    cover: "album_cover/hyukoh.jfif",
+    reviewFile: "hyukoh_23_review"
+  },
+  2: {
+    title: "CHROMAKOPIA",
+    artist: "Tyler, the Creator",
+    year: "2024",
+    label: "Columbia Records",
+    tracks: "14 tracks",
+    genre: "HIP-HOP / SOUL",
+    rating: "5",
+    color: "linear-gradient(135deg,#3a5020,#204010,#486030)",
+    description: "What does it mean to keep the light on when the whole world wants to dim it? That question sits at the center of CHROMAKOPIA, the eighth studio album by Tyler, the Creator, released on October 28, 2024. It is a 14-track record narrated in part by his mother, Bonita Smith, whose voice opens the album and recurs throughout, functioning as both moral compass and witness. The title is a portmanteau of 'chrome' — a colored thing — and 'kopia,' the Polish word for copy, with identity and self-discovery as its core themes.",
+    reviewExcerpt: "Thematically, CHROMAKOPIA traces an emotional arc from bravado and paranoia through grief, romantic ambivalence, and racial self-determination, arriving — with cautious honesty — at something resembling peace. It does not move through these states in a linear fashion; it lurches, doubles back, and surprises. The album's greatest achievement is its coherence across radically different sonic registers — from the martial grandeur of \"St. Chroma\" to the bare acoustic grief of \"Tomorrow\" to the exuberant chaos of \"Sticky.\"",
+    topTracks: [
+      { rank: 1, title: "Like Him (feat. Lola Young)", desc: "CHROMAKOPIA's emotional centerpiece. The track opens with Bonita Smith describing how Tyler resembles his absent father — and from this quiet, specific detail, the song expands into something universal. Tyler grapples with a resemblance he did not ask for, chasing what he calls a ghost, while his mother's voice at the end provides not resolution but acknowledgment." },
+      { rank: 2, title: "Thought I Was Dead (feat. ScHoolboy Q & Santigold)", desc: "Built around a jazz-inflected brass arrangement — insistent trumpets driving a near-martial groove — the track is the album's greatest pure rap performance. Tyler's verse is a torrential display of technical skill and lyrical wit: an assertion of radical self-ownership delivered with ease." },
+      { rank: 3, title: "Hey Jane", desc: "A back-and-forth epistolary track that navigates an unplanned pregnancy from two perspectives simultaneously. Using alternating voices and deliberately spare production, the song constructs two radically different emotional realities within a single sonic space." }
+    ],
+    funFacts: [
+      "Tyler, the Creator's real name is Tyler Gregory Okonma. He was born on March 6, 1991, in Ladera Heights, California.",
+      "Before his music career, Tyler co-founded the hip-hop collective Odd Future (OFWGKTA) as a teenager, launching the careers of Earl Sweatshirt, Frank Ocean, and others.",
+      "Tyler is a Grammy Award winner — his album IGOR (2019) won Best Rap Album at the 62nd Grammy Awards, making him one of the few artists to win for an album he wrote, produced, and performed almost entirely alone."
+    ],
+    spotify: "https://open.spotify.com/album/0U28P0QVB1QRxpqp5IHOlH?si=3c47d7a2aded447e",
+    cover: "album_cover/chromakopia.jpg",
+    reviewFile: "chromakopia_review"
+  },
+  3: {
+    title: "Kiss All The Time.\nDisco, Occasionally",
+    artist: "Harry Styles",
+    year: "2026",
+    label: "Columbia / Erskine Records",
+    tracks: "12 tracks",
+    genre: "POP / DISCO",
+    rating: "4.5",
+    color: "linear-gradient(135deg,#c060a0,#801060,#401030)",
+    description: "Kiss All The Time, Disco Occasionally is proof that good things come to those who wait. Styles' much anticipated fourth studio album is a product of a nearly 3-year hiatus from live performances, after a 22-month tour between 2021 to 2023. In a discussion with Apple Music host Zane Lowe, he detailed the experience as a personal statement of letting go of traditional notions of brilliance and figuring out what he personally thinks is good.",
+    reviewExcerpt: "The album reflects a much needed journey of self-reflection and learning to establish personal boundaries as a public figure. It highlights Styles reaching out at a low point in his life to learning how to enjoy the struggle. His craft seeps into every lyric and musical arrangement, with the goal of creating something that he himself would be eager to experience in all its forms — but most particularly on the dance floor.",
+    topTracks: [
+      { rank: 1, title: "Coming Up Roses", desc: "The only track where Styles is given full credit for both music and lyrics — the star of the album. Alongside a 39-piece orchestra, he takes you on an emotional journey through a love story with the highest of highs and the lowest of lows. Starting with the mere plucking of violins to a full ensemble piece, representative of the evolution of a relationship." },
+      { rank: 2, title: "Season 2 Weight Loss", desc: "Its persistent use of minor chords evokes feelings of unease and confusion, as Styles seeks validation internally and externally through the question \"Do you love me now? Do I let you down?\" — a response to fans asking if his career break led to any noticeable changes." },
+      { rank: 3, title: "Carla's Song", desc: "The perfect ending to this whirlwind of an album. It simply gives listeners that zest for life to experience everything to the fullest. The drums take center stage. Encapsulating the experience of making music: \"Making music is just adding something to this world of things that is waiting for people to discover.\"" }
+    ],
+    funFacts: [
+      "The singer was discovered from his X Factor audition in 2010, which led to him being a member of One Direction, one of the most popular boybands of all time.",
+      "He famously worked at a bakery in his hometown, Holmes Chapel, which fans still visit to this day.",
+      "His first solo single, \"Sign of the Times,\" debuted at No. 1 on the UK Singles Charts."
+    ],
+    spotify: "https://open.spotify.com/album/69BqE1V8Bzb9GCyeP1fFeR?si=678f1396d7504f85",
+    cover: "album_cover/harry_styles.jfif",
+    reviewFile: "harry_styles_review"
+  },
+  4: {
+    title: "Planet Her",
+    artist: "Doja Cat",
+    year: "2021",
+    label: "Kemosabe / RCA Records",
+    tracks: "14 tracks",
+    genre: "POP / R&B",
+    rating: "4",
+    color: "linear-gradient(135deg,#601880,#300840,#180420)",
+    description: "\"Planet Her\" is Doja Cat's third studio album, released on June 25, 2021. The 14-track project positions Doja Cat as the ruler of a fictional celestial body, using this sci-fi concept to explore themes of femininity, power, desire, and emotional vulnerability. The album features collaborations with SZA, Ariana Grande, The Weeknd, Young Thug, and JID. It debuted at number two on the Billboard 200, was certified platinum by the RIAA, and earned three Grammy nominations including Album of the Year.",
+    reviewExcerpt: "When Doja Cat declared herself ruler of a fictional planet, she wasn't being hyperbolic — she was making a mission statement. \"Planet Her\" is a 14-track journey through a meticulously constructed pop universe where genre boundaries dissolve. The album opens with \"Woman,\" a swaggering declaration of feminine power draped in disco-funk production that recalls Studio 54 reimagined for the TikTok generation. The bass line prowls like a panther in heels while Doja's vocals glide effortlessly between breathy coos and full-throated belting.",
+    topTracks: [
+      { rank: 1, title: "Kiss Me More (feat. SZA)", desc: "The album's lead single and biggest commercial success. The chemistry between Doja and SZA crackles with playful sensuality over production that samples Olivia Newton-John's \"Physical\" while sounding utterly contemporary. The song peaked at number three on the Billboard Hot 100 and won the Grammy for Best Pop Duo/Group Performance." },
+      { rank: 2, title: "Woman", desc: "A disco-funk anthem that channels '70s glamour through a modern lens. The song's confident lyrics celebrating femininity are matched by swaggering production featuring live bass, shimmering strings, and Doja's most dynamic vocal performance on the album. A statement of intent that sets the tone for everything that follows." }
+    ],
+    funFacts: [
+      "Born Amala Ratna Zandile Dlamini, Doja Cat's father is South African actor Dumisani Dlamini, who appeared in the original Broadway production of \"Sarafina!\" Her stage name \"Doja\" comes from her love of marijuana and her favorite strain at the time.",
+      "At the 2022 Grammy Awards, \"Kiss Me More\" won Best Pop Duo/Group Performance. In her acceptance speech, she nearly missed receiving the award because she was in the bathroom, leading to a memorable moment when she rushed on stage."
+    ],
+    spotify: "https://open.spotify.com/album/4XLPYMERZZaBzkJg0mkdvO?si=cfff24a896344570",
+    cover: "album_cover/doja_cat.jfif",
+    reviewFile: "planet_her_review"
+  }
+};
+
+// ── FULL REVIEW DATA  ──────
+const reviews = {
+  hyukoh_23_review: {
+    meta: { title: "23: Hyukoh and the Duality of Youth", author: "Mark Laurence G. Ting", course: "IDS 121.15i - K", date: "2017" },
+    sections: [
+      { heading: null, body: ["What does it mean to be young at the exact moment you realize it will not last?", "That question sits at the center of 23, the first full-length album by South Korean indie rock band Hyukoh (혁오). Released on April 24, 2017, the record is the third installment in the band's age-named discography, following EPs 20 (2014) and 22 (2015). By any measure, it is their most ambitious and fully realized work. While their earlier EPs hinted at themes of youthful anxiety, 23 explores them more fully and with greater emotional depth, examining what Oh Hyuk describes as the duality of youth — both its radiant optimism and the anxiety that sets in when you realize it is finite.", "Hyukoh consists of Oh Hyuk (lead vocals, rhythm guitar, songwriter), Im Dong-geon (bass), Lim Hyun-jae (lead guitar), and Lee In-woo (drums). 23 is a 12-track full-length album featuring double title tracks (\"Leather Jacket\" and \"TOMBOY\"). It is trilingual, incorporating Korean, English, and Mandarin, spanning genres such as indie rock, surf rock, shoegaze, folk, and neo-psychedelia.", "Thematically, the album traces an emotional arc from the brittle bravado of early youth to grief, introspection, and, ultimately, cautious hope. It does not move through these states in a perfectly linear fashion — it lurches, doubles back, and surprises; and that unpredictability gives the album a sense of authenticity."] },
+      { heading: "Burning Youth", body: ["The album opens with \"Burning Youth,\" a short, two-minute track that wastes no time establishing tone. Its very first line, \"How will you survive the world full of anguish,\" reads like a thesis statement for the songs that follow. Paradoxically, these lyrics are delivered over a bright, marching drum pattern and delay-soaked guitar picking that sounds almost celebratory. The tension between its resigned lyrical sentiment and energetic arrangement is intentional and effective."] },
+      { heading: "Tokyo Inn", body: ["\"Tokyo Inn\" continues that momentum. Driven by a jangly electric guitar with a surf-rock shimmer, the song feels like the inside of a moving taxi at night — restless, untethered, going somewhere but not quite sure where. The song's hook, the wordless, lilting \"woo-woo\" refrain is a dangerous earworm, and it anchors an otherwise melancholy meditation on aimless youth."] },
+      { heading: "Leather Jacket", body: ["\"Leather Jacket,\" one of the album's double title tracks, picks up the pace with a sharp, fast-paced rhythm and a bass line that gets increasingly heavy as the track progresses. Thematically, the song is a declaration of non-conformity — a refusal to be shaped by societal molds and expectations. Even the title itself evokes rebellion and individuality, reinforcing the song's defiant stance."] },
+      { heading: "TOMBOY", body: ["Where the first three tracks bristle with energy, \"TOMBOY,\" the album's second title track and its commercial centerpiece, strips things down into something more tender and aching. Here, Oh Hyuk sings as if he is not performing, but reflecting and confessing. The Korean lyrics carry a bittersweet self-awareness that cuts deep: \"I'm happy right now, so I'm nervous / Because the sea is always calm before the storm.\" It is a song about the precariousness of good moments — knowing they cannot last, loving them anyway."] },
+      { heading: "2002WorldCup", body: ["\"2002WorldCup\" is the album's most nostalgic track, named after the Korea-Japan World Cup that Oh Hyuk has cited as the happiest time of his childhood. The song reflects on the passage of time through small visual markers — a student with black hair, then the same person older with hair slightly dyed red — a quiet visual metaphor for how gradually people change."] },
+      { heading: "Jesus Lived in a Motel Room", body: ["\"Jesus Lived in a Motel Room\" marks a tonal shift. Opening with vocal layering that gives the song an almost operatic quality before the drums kick in, the track deals with anxiety in a direct and unflinching way — not as an abstract mood but as something persistent and generational."] },
+      { heading: "Wanli 万里", body: ["\"Wanli 万里\" is the album's only track in Mandarin Chinese. A guitar line arrives that sounds less like a Western rock instrument and more like a plucked Chinese string instrument. With sparse lyrics and a title meaning \"ten thousand miles,\" the song evokes the expanse of the Great Wall, the feeling of enormous physical and emotional distance."] },
+      { heading: "Die Alone", body: ["\"Die Alone\" follows with a drum-led opening that shares Wanli's sense of scale. The vocal layering, including a low, repeated \"hey, bum bum,\" gives it a ghostly, ritualistic feeling. The lyrics circle around mortality and rebirth — the repeated refrain, rather than feeling bleak, becomes almost cathartic."] },
+      { heading: "Simon", body: ["\"Simon\" is among the album's most emotionally raw tracks. Written in English and dedicated to a friend of Oh Hyuk's who passed away, it carries the particular grief of speaking to someone who can no longer respond. The shoegaze-influenced production creates a sound that is woozy and immersive, like a memory."] },
+      { heading: "Surf Boy", body: ["The album closes with \"Surf Boy,\" and the tonal shift is immense and intentional. The track bursts open with bright, sun-soaked surf rock energy — vibrant, kinetic, and cheerful in a way that feels almost defiant after everything that came before it. The lyrical message ultimately advocates for cautious optimism: hoping for the best while preparing for the worst."] },
+      { heading: null, body: ["As someone who is also 23 years old, I find something deeply resonant in this album — particularly in how its musical and lyrical elements capture a sense of uncertainty that feels both personal and widely relatable. What 23 captures — the anxiety of being between things, the simultaneous hunger for freedom and fear of what freedom costs — is not uniquely Korean, but reflects the condition of being this age.", "Ultimately, 23 is the kind of record that does not just hold up to repeated listening; it deepens with it. To be young is to feel everything intensely while knowing it will not last, to hold on to those moments anyway, even as they begin to slip away."] }
+    ]
+  },
+  chromakopia_review: {
+    meta: { title: "Sound and Color", subtitle: "A Music Review of Tyler, the Creator's CHROMAKOPIA", date: "2024" },
+    sections: [
+      { heading: null, body: ["Robert DiYanni opens his essay \"Sound and Sense: Writing About Music\" with a sobering confession: translating musical meaning into verbal language is an inherently imperfect enterprise. Music, he argues, is \"a non-referential language with its own strictly musical meanings\" — one that resists neat articulation. It is in this spirit that one must encounter Tyler, the Creator's eighth studio album, CHROMAKOPIA, a record that itself grapples with the challenge of self-expression. More than any of his previous records, CHROMAKOPIA is a sustained meditation on what it means to be seen, to be misunderstood, to age in public, and to remain, against all odds, genuinely oneself.", "Released through Columbia Records on October 28, 2024, CHROMAKOPIA arrived with the momentum of an event — dropped on a Monday morning at six o'clock with minimal advance notice. The title is a portmanteau of \"chrome\" and \"kopia,\" the Polish word for copy, with identity and self-discovery as its core themes. The album is narrated by Tyler's mother, Bonita Smith, functioning like a diary that pieces together his perspective on past experiences."] },
+      { heading: "Opening: \"St. Chroma\" and \"Rah Tah Tah\"", body: ["The album opens with \"St. Chroma,\" and from its first seconds it establishes what kind of record this will be: enormous, unsettled, and demanding. The track begins with Bonita Smith's voice delivering a maternal manifesto — \"You are the light / It's not on you, it's in you / Don't you ever in your motherfucking life dim your light for nobody\" — before the sound of marching feet and chanting crowds swells beneath her words.", "\"Rah Tah Tah\" follows immediately, and the tonal whiplash is deliberate. Where \"St. Chroma\" is expansive and ceremonial, \"Rah Tah Tah\" is compact and combative — a banger in the most classic sense of the word. The track's braggadocio is best understood not as simple boasting but as psychological armor, a performance of invulnerability that the rest of the album systematically dismantles."] },
+      { heading: "Paranoia & Romance: \"Noid\" and \"Darling, I\"", body: ["Released as the album's lead single, \"Noid\" is CHROMAKOPIA's most structurally dissonant track and one of its most revealing. The title is the second half of the word \"paranoid,\" and the track delivers precisely what that etymology promises: an unnerving sonic portrait of a man who cannot step outside without feeling surveilled, hunted, and consumed.", "\"Darling, I,\" which follows, performs an almost therapeutic function. The track is one of the album's most melodically polished moments, built on piano chords and a grooving mid-tempo beat. It questions the concept of monogamy — Tyler rapping about how he seems to acquire everything from a single person, yet still finds himself searching even while standing at the altar."] },
+      { heading: "Like Him — The Emotional Heart", body: ["\"Like Him\" is CHROMAKOPIA's emotional centerpiece and one of the most devastating songs Tyler has ever made. The track opens with Bonita Smith describing how Tyler resembles his absent father in both appearance and behavior — and from this quiet, specific detail, the song expands outward into something universal. Tyler grapples with a resemblance he did not ask for, chasing what he calls a ghost, while his mother's voice at the end provides not resolution but acknowledgment, vulnerability, and imperfect love."] },
+      { heading: "Hey Jane", body: ["\"Hey Jane\" is one of Tyler's most structurally ambitious compositions: a back-and-forth epistolary track that navigates an unplanned pregnancy from two perspectives simultaneously. Using alternating voices and deliberately spare production, the song constructs two radically different emotional realities within a single sonic space. The production is calm, almost uncomfortably so — an arrangement that refuses to tell the listener how to feel."] },
+      { heading: null, body: ["Ultimately, CHROMAKOPIA is the kind of record that does not just hold up to repeated listening — it deepens with it. This is Tyler's most definitive album, the moment where his influences fully dissolve into something that is entirely, unmistakably his own: a record that demands attention and rewards it generously. It is simultaneously Tyler's most accessible and most demanding record."] }
+    ]
+  },
+  harry_styles_review: {
+    meta: { title: "Kiss All The Time, Disco Occasionally: An Album Review", subtitle: "Harry Styles (2026)", author: "Pia San Miguel", date: "2026" },
+    sections: [
+      { heading: null, body: ["Kiss All The Time, Disco Occasionally is proof that good things come to those who wait. Styles' much anticipated fourth studio album is a product of a nearly 3-year hiatus from live performances, after a 22-month tour between 2021 to 2023. In a discussion with Apple Music host Zane Lowe, he detailed his experience in writing and producing the 12-track work as a personal statement of letting go of the traditional notions of brilliance and figuring out what he personally thinks is good.", "The album reflects a much needed journey of self-reflection and learning to establish personal boundaries as a public figure. His craft seeps into every lyric and musical arrangement, with the goal of creating something that he himself would be eager to experience in all its forms, but most particularly on the dance floor."] },
+      { heading: "Aperture", body: ["While the lead single serves as the opening track, Styles recalled it actually being written towards the end of production. With themes of introspection and self-acknowledgement, Aperture revolves around the idea of holding oneself accountable for wrongdoings and the freedom that comes with that acknowledgement. Its psychedelic, electronic, house-influenced nature signaled to longtime fans that a new chapter has commenced — written after a night in Berghain, Berlin's exclusive nightclub."] },
+      { heading: "American Girls", body: ["A piano-driven introduction sets the scene for a moment to ponder on what makes a risk worth taking — specifically what it means to choose someone to spend your life with forever. Styles sings as a response to several of his friends getting married. As the song picks up pace, a sense of excitement takes over to go after what you want in life, especially when it feels as if everyone around you has begun to settle down."] },
+      { heading: "Coming Up Roses", body: ["It is no surprise that the only track where Styles is given full credit for both the music and the lyrics is what I consider to be the star of the album. From beginning to end, he, alongside a 39-piece orchestra, takes you on an emotional journey through a love story with the highest of highs and the lowest of lows, in the form of a tear-jerking ballad. According to Styles himself, the song is about \"how special something can be and not everything has to last forever in order for it to be special.\""] },
+      { heading: "Dance No More", body: ["We see the album name come to life with Dance No More's addicting disco beat, carried by a prominent bass line, playful keyboards, and use of voice distortion. The carefree and fun experience of being in the studio producing this track is evident through the call-and-response element in the chorus. The lyric \"There's no difference between the tears and the sweat\" provides insight into the emotion that comes with dancing your heart out."] },
+      { heading: "Carla's Song", body: ["As if the album could not get any better, I would personally like to thank Carla for the life-changing creation that is this song — what I believe to be the perfect ending to this whirlwind of an album. It simply gives listeners that zest for life to experience everything to the fullest. For Styles, this encapsulates the experience of making music: \"Making music is just adding something to this world of things that is waiting for people to discover.\""] },
+      { heading: null, body: ["To sum it up, Kiss All The Time. Disco, Occasionally is Harry Styles at his most free and vulnerable yet. I believe that this new era is a love letter from Styles to his younger self, telling him that he now feels less restricted and can confidently pursue his dreams while still staying authentic. Dare I say, one of the greatest comebacks in modern music history."] }
+    ]
+  },
+  planet_her_review: {
+    meta: { title: "Planet Her: Doja Cat's Cosmic Pop Empire", subtitle: "A Review of Doja Cat's Third Studio Album", date: "2021", rating: "4/5 stars" },
+    sections: [
+      { heading: null, body: ["When Doja Cat declared herself ruler of a fictional planet with her third studio album, she wasn't being hyperbolic — she was making a mission statement. \"Planet Her,\" released in June 2021, is a 14-track journey through a meticulously constructed pop universe where genre boundaries dissolve, where Nicki Minaj and Ariana Grande orbit the same sonic galaxy, and where Doja Cat reigns as the architect of her own gleaming, genre-fluid empire."] },
+      { heading: "Woman — A Thesis Statement", body: ["The album opens with \"Woman,\" a swaggering declaration of feminine power draped in disco-funk production that recalls the glittering dancefloors of Studio 54 reimagined for the TikTok generation. The bass line prowls like a panther in heels while Doja's vocals glide effortlessly between breathy coos and full-throated belting. The production layers live instrumentation with synthetic textures, creating what feels less like a song and more like a three-dimensional sonic hologram."] },
+      { heading: "Kiss Me More — The Alchemical Hit", body: ["What makes \"Planet Her\" particularly fascinating is Doja Cat's willingness to let her collaborators shine without surrendering her artistic vision. \"Kiss Me More,\" featuring SZA, became the album's commercial juggernaut. The chemistry between the two artists crackles with playful sensuality, their voices intertwining over production that samples Olivia Newton-John's \"Physical\" while sounding utterly contemporary."] },
+      { heading: "Identity and Authenticity", body: ["\"Planet Her\" isn't just a showcase for genre tourism — it's a statement about contemporary pop's relationship with identity and authenticity. Doja Cat has faced criticism throughout her career for alleged inauthenticity, for being too online, too willing to play different roles. \"Planet Her\" responds by leaning into that multiplicity, suggesting that in 2021, versatility isn't a weakness but a superpower."] },
+      { heading: "Production — Immaculate, Perhaps Too Much So", body: ["From a production standpoint, \"Planet Her\" is immaculate — almost too immaculate. Every sound has been polished to a chrome shine, every vocal run Auto-Tuned to mathematical precision. This aesthetic fits the album's futuristic concept, but it occasionally creates an emotional distance. Yet this tension is perhaps intentional: \"Planet Her\" exists in the uncanny valley between authenticity and performance, between human emotion and digital perfection."] },
+      { heading: "Conclusion", body: ["In the taxonomy of 2021 pop albums, \"Planet Her\" stands out for its refusal to choose a lane. It's R&B, it's rap, it's dance-pop — all of these and none of these simultaneously. Doja Cat has created her own planet, governed by her own rules, where the only law is that there are no laws — except, perhaps, the mandate to be endlessly, fearlessly inventive. Final rating: 4/5 stars."] }
+    ]
+  }
+};
+
+// ── STAR RATING HELPER ────
+function renderStars(ratingStr, containerId) {
+  const val = parseFloat(ratingStr) || 0;
+  const max = 5;
+  let html = '';
+  for (let i = 1; i <= max; i++) {
+    if (val >= i)            html += '<span class="star-on">★</span>';
+    else if (val >= i - 0.5) html += '<span class="star-half">★</span>';
+    else                     html += '<span class="star-off">★</span>';
+  }
+  document.getElementById(containerId).innerHTML = html;
+}
+
+let currentAlbumId = null;
+
+// ── TOOLTIP LABELS ──────
+const labels = {
+  1: 'HYUKOH — 23',
+  2: 'Tyler, the Creator — CHROMAKOPIA',
+  3: 'Harry Styles — Kiss All The Time',
+  4: 'Doja Cat — Planet Her',
+  about: 'About Us'
+};
+
+// ── OPEN SUMMARY CARD ─────
+function openModal(id) {
+  currentAlbumId = id;
+  const a = albums[id];
+
+  document.getElementById('modal-title').textContent   = a.title;
+  document.getElementById('modal-artist').textContent  = a.artist;
+  document.getElementById('modal-year').textContent    = a.year;
+  document.getElementById('modal-label').textContent   = a.label;
+  document.getElementById('modal-tracks').textContent  = a.tracks;
+  document.getElementById('modal-genre').textContent   = a.genre;
+  renderStars(a.rating, 'modal-rating');
+  // Album art: use cover image if available, fall back to gradient
+  const artEl = document.getElementById('modal-art');
+  if (a.cover) {
+    artEl.style.background = 'none';
+    artEl.innerHTML = `<img src="${a.cover}" style="width:110px;height:110px;object-fit:cover;border-radius:2px;display:block;" onerror="this.parentElement.style.background='${a.color}';this.remove();">`;
+  } else {
+    artEl.innerHTML = '';
+    artEl.style.background = a.color;
+  }
+  
+  // Spotify button
+  const spotifyEl = document.getElementById('modal-spotify');
+  if (a.spotify) {
+    spotifyEl.style.display = 'inline-flex';
+    spotifyEl.href = a.spotify;
+  } else {
+    spotifyEl.style.display = 'none';
+  }
+  document.getElementById('modal-description').textContent = a.description;
+  document.getElementById('modal-review').textContent  = a.reviewExcerpt;
+
+  // Top tracks
+  const tl = document.getElementById('modal-tracks-list');
+  tl.innerHTML = '';
+  a.topTracks.forEach(t => {
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex;gap:12px;align-items:flex-start;';
+    div.innerHTML = `
+      <div style="font-family:'VT323',monospace;font-size:22px;color:rgba(245,200,66,0.6);width:20px;flex-shrink:0;line-height:1;">${t.rank}.</div>
+      <div>
+        <div style="font-family:'Special Elite',serif;font-size:14px;color:#f5c842;margin-bottom:3px;">${t.title}</div>
+        <div style="font-size:12px;line-height:1.7;color:rgba(240,232,208,0.75);">${t.desc}</div>
+      </div>`;
+    tl.appendChild(div);
+  });
+
+  // Fun facts
+  const ff = document.getElementById('modal-funfacts');
+  ff.innerHTML = a.funFacts.map((f,i) => `<p style="margin-bottom:6px;"><span style="font-family:'VT323',monospace;color:rgba(245,200,66,0.6);">${i+1}.</span> ${f}</p>`).join('');
+
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+document.getElementById('modal-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+});
+
+// ── ABOUT MODAL ─────
+function openAbout() {
+  document.getElementById('about-overlay').classList.add('open');
+}
+function closeAbout() {
+  document.getElementById('about-overlay').classList.remove('open');
+}
+document.getElementById('about-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('about-overlay')) closeAbout();
+});
+
+// ── OPEN BLOG ───
+function openBlog(id) {
+  const a = albums[id];
+  const path = 'reviews/' + a.reviewFile + '.json';
+
+  fetch(path)
+    .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
+    .then(data => renderBlog(data))
+    .catch(() => {
+
+      renderBlog(reviews[a.reviewFile]);
+    });
+
+  closeModal();
+  document.getElementById('blog-overlay').style.display = 'block';
+  document.getElementById('blog-overlay').scrollTop = 0;
+}
+
+function renderBlog(data) {
+  const m = data.meta;
+  let html = `
+    <div style="font-family:'VT323',monospace;font-size:13px;letter-spacing:2px;color:rgba(245,200,66,0.55);margin-bottom:12px;text-transform:uppercase;">Music Review</div>
+    <h1 style="font-family:'Special Elite',serif;font-size:36px;color:#f5c842;line-height:1.2;margin-bottom:8px;text-shadow:0 0 30px rgba(245,200,66,0.2);">${m.title}</h1>`;
+
+  if (m.subtitle) html += `<div style="font-size:16px;color:rgba(240,232,208,0.6);margin-bottom:16px;font-style:italic;">${m.subtitle}</div>`;
+
+  const bylineParts = [];
+  if (m.author) bylineParts.push('By ' + m.author);
+  if (m.course) bylineParts.push(m.course);
+  if (m.date)   bylineParts.push(m.date);
+  if (m.rating) bylineParts.push(m.rating);
+  if (bylineParts.length) {
+    html += `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:20px;border-bottom:1px solid rgba(106,64,32,0.4);font-family:'VT323',monospace;font-size:15px;color:rgba(200,160,80,0.65);letter-spacing:1px;">${bylineParts.map(p=>`<span>${p}</span>`).join('<span>·</span>')}</div>`;
+  }
+
+  // Album description block 
+  if (data.albumDescription) {
+    html += `<div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.5);text-transform:uppercase;margin-bottom:8px;margin-top:20px;">Album Description</div>`;
+    html += `<div style="background:rgba(245,200,66,0.05);border-left:3px solid rgba(245,200,66,0.3);padding:14px 16px;font-size:13px;line-height:1.8;color:rgba(240,232,208,0.75);margin-bottom:24px;">${data.albumDescription.summary}</div>`;
+  }
+
+  // Sections
+  if (data.sections) {
+    data.sections.forEach(sec => {
+      if (sec.heading) {
+        html += `<h2 style="font-family:'Special Elite',serif;font-size:20px;color:#f5c842;margin:36px 0 12px;border-left:3px solid rgba(245,200,66,0.5);padding-left:12px;">${sec.heading}</h2>`;
+      }
+      sec.body.forEach(para => {
+        html += `<p style="font-size:14px;line-height:1.9;color:rgba(240,232,208,0.85);margin-bottom:16px;text-align:justify;">${para}</p>`;
+      });
+    });
+  }
+
+  // Top Tracks
+  if (data.topTracks && data.topTracks.length) {
+    html += `<div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.5);text-transform:uppercase;margin:36px 0 12px;border-top:1px solid rgba(106,64,32,0.4);padding-top:20px;">Top Tracks</div>`;
+    data.topTracks.forEach(t => {
+      const feats = t.features && t.features.length ? ` <em style="color:rgba(240,232,208,0.5);font-size:13px;">feat. ${t.features.join(', ')}</em>` : '';
+      html += `<div style="background:rgba(245,200,66,0.04);border-radius:2px;padding:12px 16px;margin-bottom:10px;">
+        <div style="font-family:'Special Elite',serif;font-size:15px;color:#f5c842;margin-bottom:6px;">${t.rank}. "${t.title}"${feats}</div>
+        <div style="font-size:13px;line-height:1.75;color:rgba(240,232,208,0.75);">${t.description || t.desc || ''}</div>
+      </div>`;
+    });
+  }
+
+  // Fun Facts
+  if (data.funFacts && data.funFacts.length) {
+    html += `<div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.5);text-transform:uppercase;margin:36px 0 12px;border-top:1px solid rgba(106,64,32,0.4);padding-top:20px;">Fun Facts</div>`;
+    data.funFacts.forEach(f => {
+      html += `<div style="font-size:13px;line-height:1.75;color:rgba(240,232,208,0.7);padding:6px 0 6px 14px;border-left:2px solid rgba(245,200,66,0.25);margin-bottom:8px;">${f}</div>`;
+    });
+  }
+
+  // References
+  if (data.references && data.references.length) {
+    html += `<div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.5);text-transform:uppercase;margin:36px 0 12px;border-top:1px solid rgba(106,64,32,0.4);padding-top:20px;">References</div>`;
+    data.references.forEach(ref => {
+      html += `<div style="font-size:12px;line-height:1.7;color:rgba(240,232,208,0.5);margin-bottom:10px;padding-left:20px;text-indent:-20px;">${ref.citation}</div>`;
+    });
+  }
+
+  document.getElementById('blog-content').innerHTML = html;
+}
+
+function closeBlog() {
+  document.getElementById('blog-overlay').style.display = 'none';
+}
+
+// ── HOTSPOT INTERACTIONS ────
+const tooltip = document.getElementById('tooltip');
+document.querySelectorAll('.hotspot').forEach(el => {
+  const id = el.dataset.id;
+  el.addEventListener('click', () => {
+    if (id === 'about') openAbout();
+    else { playAlbumTrack(id); openModal(id); }
+  });
+  el.addEventListener('mouseenter', () => {
+    tooltip.textContent = '▶ ' + (labels[id] || '');
+    tooltip.style.display = 'block';
+  });
+  el.addEventListener('mousemove', e => {
+    tooltip.style.left = (e.clientX + 14) + 'px';
+    tooltip.style.top  = (e.clientY - 32) + 'px';
+  });
+  el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+});
+
+// ── WELCOME CARDS ─────
+const welcomeSlides = [
+  {
+    eyebrow: "Welcome",
+    heading: "The Groove Shelf",
+    body: `<p>Welcome to our little corner of the internet for music-lovers alike. Seek solace in our cozy cafe, a space to unwind and let rhythms and melodies take control. Here, you can drown out the noise from the outside world and have a moment to yourself filled with just the right vibes.</p>
+           <p>Feel free to browse through our shelves for a peek into the music that fills our cups to the fullest.</p>`,
+    btn: "Continue →"
+  },
+  {
+    eyebrow: "Who Is This For?",
+    heading: "Come In & Stay Awhile",
+    body: `<p>Everyone is welcome to step into our little vinyl café and explore the albums on our shelves. But this space is especially for those who crave a slower, more intentional way of listening — those who would enjoy sitting with an album while reading along, letting the review deepen and enrich the experience of each track.</p>
+           <p>Are you the type who lingers over album covers, reads lyrics like poetry, or lets a record play from start to finish without interruption? If that sounds like you, then come in and stay awhile. You're in the right place.</p>`,
+    btn: "Enter the Shelf ▶"
+  }
+];
+
+let welcomeStep = 0;
+
+function nextWelcome() {
+  welcomeStep++;
+  if (welcomeStep >= welcomeSlides.length) {
+    const ov = document.getElementById('welcome-overlay');
+    ov.style.transition = 'opacity 0.5s ease';
+    ov.style.opacity = '0';
+    setTimeout(() => { ov.style.display = 'none'; }, 500);
+    return;
+  }
+  showWelcome(welcomeStep);
+}
+
+function showWelcome(i) {
+  const s = welcomeSlides[i];
+  const card = document.getElementById('welcome-card');
+  card.style.opacity = '0';
+  card.style.transition = 'opacity 0.3s ease';
+  setTimeout(() => {
+    document.getElementById('welcome-eyebrow').textContent = s.eyebrow;
+    document.getElementById('welcome-heading').textContent = s.heading;
+    document.getElementById('welcome-body').innerHTML      = s.body;
+    document.getElementById('welcome-btn').textContent     = s.btn;
+    document.getElementById('welcome-step').textContent    = `${i+1} / ${welcomeSlides.length}`;
+    card.style.opacity = '1';
+  }, 300);
+}
+
+// Init first slide
+showWelcome(0);
+
+// ── AUDIO ───────
+const sndInsert = document.getElementById('snd-insert');
+
+const sndCrackle = new Audio('music/crackle.wav');
+sndCrackle.loop   = true;
+sndCrackle.volume = 0.12;
+
+let sndAlbum     = new Audio();
+let masterVolume = 0.75;
+let isPlaying    = false;
+
+const albumMeta = {
+  1: { title: '23',                              artist: 'Hyukoh' },
+  2: { title: 'CHROMAKOPIA',                     artist: 'Tyler, the Creator' },
+  3: { title: 'Kiss All The Time. Disco, Occ.', artist: 'Harry Styles' },
+  4: { title: 'Planet Her',                      artist: 'Doja Cat' }
+};
+
+const albumTracks = {
+  1: 'music/hyukoh.mp3',
+  2: 'music/chromakopia.mp3',
+  3: 'music/harry_styles.mp3',
+  4: 'music/doja_cat.mp3'
+};
+
+// Play insert sfx then crackle after 3s
+window.addEventListener('load', () => {
+  sndInsert.play().catch(()=>{});
+  setTimeout(() => { sndCrackle.play().catch(()=>{}); }, 3000);
+});
+
+function playAlbumTrack(id) {
+  const src  = albumTracks[id];
+  const meta = albumMeta[id];
+  if (!src) return;
+
+  sndAlbum.pause();
+  sndAlbum = new Audio(src);
+  sndAlbum.volume = masterVolume;
+  sndAlbum.play().catch(()=>{});
+  isPlaying = true;
+
+  // Update player UI
+  document.getElementById('np-title').textContent  = meta.title;
+  document.getElementById('np-artist').textContent = meta.artist;
+  document.getElementById('np-playpause').textContent = '⏸';
+  document.getElementById('now-playing').classList.add('visible');
+
+  // When track ends revert button
+  sndAlbum.onended = () => {
+    isPlaying = false;
+    document.getElementById('np-playpause').textContent = '▶';
+  };
+}
+
+function togglePlayPause() {
+  if (!sndAlbum.src) return;
+  if (isPlaying) {
+    sndAlbum.pause();
+    isPlaying = false;
+    document.getElementById('np-playpause').textContent = '▶';
+  } else {
+    sndAlbum.play().catch(()=>{});
+    isPlaying = true;
+    document.getElementById('np-playpause').textContent = '⏸';
+  }
+}
+
+function setMasterVolume(val) {
+  masterVolume = parseFloat(val);
+  sndAlbum.volume  = masterVolume;
+  // Update vol icon
+  const icon = document.getElementById('np-vol-icon');
+  icon.textContent = masterVolume === 0 ? '🔇' : masterVolume < 0.4 ? '🔈' : '🔊';
+}
+
+// ── SCALE WRAPPER ──────
+function scaleWrapper() {
+  const wrapper = document.getElementById('image-wrapper');
+  const scale = Math.max(window.innerWidth / 1920, window.innerHeight / 1080);
+  wrapper.style.transform = `scale(${scale})`;
+  wrapper.style.left = ((window.innerWidth  - 1920 * scale) / 2) + 'px';
+  wrapper.style.top  = ((window.innerHeight - 1080 * scale) / 2) + 'px';
+  wrapper.style.position = 'absolute';
+}
+scaleWrapper();
+window.addEventListener('resize', scaleWrapper);
+
+// ── VHS TIMECODE ──────
+function pad(n) { return String(n).padStart(2,'0'); }
+let secs = 0;
+setInterval(() => {
+  secs++;
+  const h = Math.floor(secs/3600), m = Math.floor((secs%3600)/60), s = secs%60;
+  document.getElementById('timecode').textContent = 'SP ◉ REC   ' + pad(h)+':'+pad(m)+':'+pad(s);
+}, 1000);
+
+const d = new Date();
+const mo = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+document.getElementById('datestamp').textContent = pad(d.getDate())+' '+mo[d.getMonth()]+' '+d.getFullYear();
+
+// Occasional static burst
+setInterval(() => {
+  if (Math.random() > 0.82) {
+    document.body.style.filter = 'brightness(1.12) contrast(1.08)';
+    setTimeout(() => document.body.style.filter = '', 70);
+  }
+}, 3500);
+</script>
+</body>
+</html>
