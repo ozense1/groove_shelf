@@ -271,18 +271,27 @@
 
   .about-name {
     font-family:'Special Elite',serif; font-size:13px;
-    color:#f5c842; margin-bottom:5px;
+    color:#f5c842; margin-bottom:3px;
   }
 
-  .about-email {
+  .about-role {
     font-family:'VT323',monospace; font-size:12px;
-    color:rgba(240,232,208,0.55); letter-spacing:0.5px;
-    word-break:break-all; line-height:1.4;
+    letter-spacing:1px; color:rgba(245,200,66,0.5);
+    text-transform:uppercase; margin-bottom:6px;
+    line-height:1.3;
   }
+
+  .about-email a {
+    font-family:'VT323',monospace; font-size:13px;
+    color:rgba(240,232,208,0.6); letter-spacing:0.5px;
+    text-decoration:none; line-height:1.5;
+    transition: color 0.2s;
+  }
+  .about-email a:hover { color:#f5c842; }
 
   /* ── IDLE GLOW on all hotspots ── */
   .hotspot {
-    box-shadow: 0 0 8px 2px rgba(255,230,100,0.18), inset 0 0 8px rgba(255,220,80,0.04);
+    box-shadow: 0 0 8px 6px rgba(243, 204, 86, 0.534), inset 0 0 8px rgba(255,220,80,0.04);
   }
   .hotspot:hover {
     border-color: rgba(255,245,180,0.75);
@@ -292,6 +301,7 @@
       inset 0 0 20px rgba(255,240,160,0.06);
     transform: scale(1.03);
   }
+
   /* ── WELCOME CARDS ── */
   #welcome-overlay {
     position: fixed; inset: 0; z-index: 900;
@@ -450,26 +460,23 @@
 
   #wt-overlay.active { display: block; }
 
-  /* dark backdrop with a cutout hole via clip-path on a pseudo — we use a real dim div + box-shadow trick instead */
   #wt-dim {
     position: absolute; inset: 0;
     background: rgba(4,2,1,0.55);
     pointer-events: all;
   }
 
-  /* the bright spotlight cutout — positioned by JS */
   #wt-spotlight {
     position: absolute;
     border-radius: 4px;
     box-shadow:
-      0 0 0 9999px rgba(4,2,1,0.55), /* punches hole in dim */
+      0 0 0 9999px rgba(4,2,1,0.55),
       0 0 0 2px rgba(245,200,66,0.7),
       0 0 20px 6px rgba(245,200,66,0.35);
     transition: all 0.5s cubic-bezier(0.4,0,0.2,1);
     pointer-events: none;
   }
 
-  /* floating tooltip bubble */
   #wt-bubble {
     position: absolute;
     background: linear-gradient(145deg, #231208, #160d06);
@@ -513,7 +520,6 @@
     border-color: rgba(245,200,66,0.85);
   }
 
-  /* the animated arrow pointer */
   #wt-arrow {
     position: absolute;
     font-size: 22px;
@@ -528,7 +534,6 @@
     to   { transform: translateY(-6px) scale(1.15); }
   }
 
-  /* For step 2: highlight the review banner inside the modal */
   .wt-highlight-banner {
     outline: 2px solid rgba(245,200,66,0.85) !important;
     box-shadow: 0 0 16px 4px rgba(245,200,66,0.45) !important;
@@ -545,7 +550,6 @@
 
   <div id="image-wrapper">
     <img id="backdrop" src="backdrop.png" alt="The Groove Shelf">
-    <!-- HOTSPOTS — exact pixel coordinates on 1920x1080 image -->
     <div class="hotspot-layer">
       <div class="hotspot" data-id="1" style="left:399px; top:322px; width:141px; height:108px;"></div>
       <div class="hotspot" data-id="2" style="left:568px; top:322px; width:118px; height:108px;"></div>
@@ -557,7 +561,6 @@
 
   <div class="vignette"></div>
 
-  <!-- VHS EFFECTS (on top of hotspots so the aesthetic is global) -->
   <div class="scanlines"></div>
   <div class="vhs-chroma"></div>
   <div class="vhs-glitch"></div>
@@ -618,7 +621,6 @@
   <div class="modal-card">
     <button class="modal-close" onclick="closeModal()">✕</button>
 
-    <!-- Read Full Review banner (top of card) -->
     <div id="review-banner" onclick="openBlog(currentAlbumId)" style="
       cursor:pointer;
       background: linear-gradient(90deg, rgba(245,200,66,0.08), rgba(245,200,66,0.15), rgba(245,200,66,0.08));
@@ -667,7 +669,7 @@
           padding:5px 14px; text-decoration:none;
           transition:background 0.2s,transform 0.15s;
         " onmouseover="this.style.background='#1ed760';this.style.transform='scale(1.04)'"
-           onmouseout="this.style.background='#1DB954';this.style.transform='scale(1)'">
+            onmouseout="this.style.background='#1DB954';this.style.transform='scale(1)'">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/></svg>
           LISTEN ON SPOTIFY
         </a>
@@ -716,7 +718,7 @@
       margin-bottom:40px;letter-spacing:1px;
       transition:border-color 0.2s,color 0.2s;
     " onmouseover="this.style.borderColor='rgba(245,200,66,0.9)';this.style.color='#f5c842'"
-       onmouseout="this.style.borderColor='rgba(245,200,66,0.4)';this.style.color='rgba(245,200,66,0.8)'">
+        onmouseout="this.style.borderColor='rgba(245,200,66,0.4)';this.style.color='rgba(245,200,66,0.8)'">
       ← BACK TO SHELF
     </button>
     <div id="blog-content"></div>
@@ -730,32 +732,54 @@
     <div class="about-title">About Us</div>
     <div class="about-subtitle">The Groove Shelf · Music Reviews · Ateneo de Manila University</div>
     <div class="about-grid">
+
       <div class="about-member">
-        <img class="about-photo" src="author/apo.jpg" alt="Apo" onerror="this.style.background='linear-gradient(135deg,#3a2a1a,#1a1008)';this.src='';">
+        <img class="about-photo" src="author/apo.jpg" alt="Apo"
+              onerror="this.style.background='linear-gradient(135deg,#3a2a1a,#1a1008)';this.src='';">
         <div class="about-name">Apo</div>
-        <div class="about-email">mark.ting@student.ateneo.edu</div>
+        <div class="about-role">HYUKOH — 23</div>
+        <div class="about-email">
+          <a href="mailto:mark.ting@student.ateneo.edu">mark.ting@student<br>.ateneo.edu</a>
+        </div>
       </div>
+
       <div class="about-member">
-        <img class="about-photo" src="author/armand.JPG" alt="Armand" onerror="this.style.background='linear-gradient(135deg,#1a2a3a,#0e1820)';this.src='';">
+        <img class="about-photo" src="author/armand.JPG" alt="Armand"
+              onerror="this.style.background='linear-gradient(135deg,#1a2a3a,#0e1820)';this.src='';">
         <div class="about-name">Armand</div>
-        <div class="about-email">armand.sotelo@student.ateneo.edu</div>
+        <div class="about-role">Tyler the Creator - CHROMAKOPIA · </div>
+        <div class="about-role">Web Designer & Developer </div>
+        <div class="about-email">
+          <a href="mailto:armand.sotelo@student.ateneo.edu">armand.sotelo@student<br>.ateneo.edu</a>
+        </div>
       </div>
+
       <div class="about-member">
-        <img class="about-photo" src="author/jenny.jpg" alt="Jenny" onerror="this.style.background='linear-gradient(135deg,#2a1a3a,#100820)';this.src='';">
+        <img class="about-photo" src="author/jenny.jpg" alt="Jenny"
+              onerror="this.style.background='linear-gradient(135deg,#2a1a3a,#100820)';this.src='';">
         <div class="about-name">Jenny</div>
-        <div class="about-email">jennylou.batalla@student.ateneo.edu</div>
+        <div class="about-role">Harry Styles — KATDDO</div>
+        <div class="about-email">
+          <a href="mailto:jennylou.batalla@student.ateneo.edu">jennylou.batalla@student<br>.ateneo.edu</a>
+        </div>
       </div>
+
       <div class="about-member">
-        <img class="about-photo" src="author/pia.JPG" alt="Pia" onerror="this.style.background='linear-gradient(135deg,#2a1a1a,#180808)';this.src='';">
+        <img class="about-photo" src="author/pia.JPG" alt="Pia"
+              onerror="this.style.background='linear-gradient(135deg,#2a1a1a,#180808)';this.src='';">
         <div class="about-name">Pia</div>
-        <div class="about-email">sofia.sanmiguel@student.ateneo.edu</div>
+        <div class="about-role">Doja Cat — Planet Her</div>
+        <div class="about-email">
+          <a href="mailto:sofia.sanmiguel@student.ateneo.edu">sofia.sanmiguel@student<br>.ateneo.edu</a>
+        </div>
       </div>
+
     </div>
   </div>
 </div>
 
 <script>
-// ── ALBUM DATA (from summary_card - Booklet.pdf) ──────────────────────────────
+// ── ALBUM DATA ────────────
 const albums = {
   1: {
     title: "23",
@@ -856,7 +880,7 @@ const albums = {
   }
 };
 
-// ── FULL REVIEW DATA (from JSON files) ───────────────────────────────────────
+// ── FULL REVIEW DATA ─────────────
 const reviews = {
   hyukoh_23_review: {
     meta: { title: "23: Hyukoh and the Duality of Youth", author: "Mark Laurence G. Ting", course: "IDS 121.15i - K", date: "2017" },
@@ -911,7 +935,7 @@ const reviews = {
   }
 };
 
-// ── STAR RATING HELPER ────────────────────────────────────────────────────────
+// ── STAR RATING HELPER ───────────────────────────────────────
 function renderStars(ratingStr, containerId) {
   const val = parseFloat(ratingStr) || 0;
   const max = 5;
@@ -947,7 +971,6 @@ function openModal(id) {
   document.getElementById('modal-tracks').textContent  = a.tracks;
   document.getElementById('modal-genre').textContent   = a.genre;
   renderStars(a.rating, 'modal-rating');
-  // Album art: use cover image if available, fall back to gradient
   const artEl = document.getElementById('modal-art');
   if (a.cover) {
     artEl.style.background = 'none';
@@ -1214,7 +1237,7 @@ function playCrackleLoop() {
   crackleSource.start(0);
 }
 
-loadCrackle(); 
+loadCrackle(); // preload buffer immediately (no autoplay yet)
 
 let sndAlbum     = new Audio();
 let masterVolume = 0.75;
@@ -1306,9 +1329,9 @@ const wtSteps = [
     bubbleSide: 'below',
     arrowDir: '▲',
     onEnter: () => {
-
+      // open modal for album 1 silently
       openModal(1);
-
+      // after 2.5s highlight the banner
       wtModalOpenTimer = setTimeout(() => {
         const banner = document.getElementById('review-banner');
         if (banner) banner.classList.add('wt-highlight-banner');
@@ -1352,7 +1375,6 @@ function wtShowStep(i) {
   document.getElementById('wt-bubble-btn').textContent     = step.btn;
   document.getElementById('wt-arrow').textContent          = step.arrowDir;
 
-  // wait 2.5s before positioning to target
   const delay = (i === 1) ? 2600 : 0;
   setTimeout(() => {
     const targetEl = step.target();
@@ -1377,6 +1399,7 @@ function wtPositionToTarget(targetEl, side, arrowDir) {
   spotlight.style.width  = (r.width  + pad*2) + 'px';
   spotlight.style.height = (r.height + pad*2) + 'px';
 
+  // Calculate raw bubble position based on side
   let bLeft, bTop, aLeft, aTop;
 
   if (side === 'right') {
@@ -1399,6 +1422,7 @@ function wtPositionToTarget(targetEl, side, arrowDir) {
     arrow.textContent = '▲';
   }
 
+  // Clamp bubble to stay fully within viewport
   bLeft = Math.max(margin, Math.min(bLeft, vw - bw - margin));
   bTop  = Math.max(margin, Math.min(bTop,  vh - bh - margin));
 
