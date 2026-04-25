@@ -292,7 +292,6 @@
       inset 0 0 20px rgba(255,240,160,0.06);
     transform: scale(1.03);
   }
-
   /* ── WELCOME CARDS ── */
   #welcome-overlay {
     position: fixed; inset: 0; z-index: 900;
@@ -354,7 +353,6 @@
     color:rgba(245,200,66,0.35); letter-spacing:1px;
     position:absolute; bottom:20px; right:24px;
   }
-
   /* ── NOW PLAYING PLAYER ── */
   #now-playing {
     position: fixed; bottom: 20px; right: 20px; z-index: 350;
@@ -443,6 +441,103 @@
     box-shadow: 0 0 6px rgba(245,200,66,0.5);
     cursor: pointer;
   }
+  /* ── WALKTHROUGH OVERLAY ── */
+  #wt-overlay {
+    position: fixed; inset: 0; z-index: 800;
+    display: none;
+    pointer-events: none; /* let the spotlight punch through */
+  }
+
+  #wt-overlay.active { display: block; }
+
+  /* dark backdrop with a cutout hole via clip-path on a pseudo — we use a real dim div + box-shadow trick instead */
+  #wt-dim {
+    position: absolute; inset: 0;
+    background: rgba(4,2,1,0.55);
+    pointer-events: all;
+  }
+
+  /* the bright spotlight cutout — positioned by JS */
+  #wt-spotlight {
+    position: absolute;
+    border-radius: 4px;
+    box-shadow:
+      0 0 0 9999px rgba(4,2,1,0.55), /* punches hole in dim */
+      0 0 0 2px rgba(245,200,66,0.7),
+      0 0 20px 6px rgba(245,200,66,0.35);
+    transition: all 0.5s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+  }
+
+  /* floating tooltip bubble */
+  #wt-bubble {
+    position: absolute;
+    background: linear-gradient(145deg, #231208, #160d06);
+    border: 1px solid rgba(245,200,66,0.5);
+    border-radius: 4px;
+    padding: 14px 18px;
+    max-width: 260px;
+    box-shadow: 0 0 30px rgba(180,110,30,0.2);
+    transition: all 0.5s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: all;
+  }
+
+  #wt-bubble-eyebrow {
+    font-family: 'VT323', monospace; font-size: 11px;
+    letter-spacing: 2px; color: rgba(245,200,66,0.5);
+    text-transform: uppercase; margin-bottom: 6px;
+  }
+
+  #wt-bubble-title {
+    font-family: 'Special Elite', serif; font-size: 15px;
+    color: #f5c842; margin-bottom: 8px; line-height: 1.3;
+  }
+
+  #wt-bubble-body {
+    font-family: 'Courier Prime', monospace; font-size: 12px;
+    line-height: 1.7; color: rgba(240,232,208,0.8);
+    margin-bottom: 12px;
+  }
+
+  #wt-bubble-btn {
+    font-family: 'VT323', monospace; font-size: 14px;
+    letter-spacing: 1.5px; padding: 5px 14px;
+    background: transparent;
+    border: 1px solid rgba(245,200,66,0.45);
+    color: rgba(245,200,66,0.85);
+    border-radius: 2px; cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  #wt-bubble-btn:hover {
+    background: rgba(245,200,66,0.1);
+    border-color: rgba(245,200,66,0.85);
+  }
+
+  /* the animated arrow pointer */
+  #wt-arrow {
+    position: absolute;
+    font-size: 22px;
+    color: #f5c842;
+    text-shadow: 0 0 12px rgba(245,200,66,0.8);
+    animation: wt-bounce 0.8s ease-in-out infinite alternate;
+    transition: all 0.5s cubic-bezier(0.4,0,0.2,1);
+    pointer-events: none;
+  }
+  @keyframes wt-bounce {
+    from { transform: translateY(0) scale(1); }
+    to   { transform: translateY(-6px) scale(1.15); }
+  }
+
+  /* For step 2: highlight the review banner inside the modal */
+  .wt-highlight-banner {
+    outline: 2px solid rgba(245,200,66,0.85) !important;
+    box-shadow: 0 0 16px 4px rgba(245,200,66,0.45) !important;
+    animation: wt-pulse-banner 1s ease-in-out infinite alternate;
+  }
+  @keyframes wt-pulse-banner {
+    from { box-shadow: 0 0 8px 2px rgba(245,200,66,0.3); }
+    to   { box-shadow: 0 0 20px 6px rgba(245,200,66,0.65); }
+  }
 </style>
 </head>
 <body>
@@ -450,7 +545,7 @@
 
   <div id="image-wrapper">
     <img id="backdrop" src="backdrop.png" alt="The Groove Shelf">
-
+    <!-- HOTSPOTS — exact pixel coordinates on 1920x1080 image -->
     <div class="hotspot-layer">
       <div class="hotspot" data-id="1" style="left:399px; top:322px; width:141px; height:108px;"></div>
       <div class="hotspot" data-id="2" style="left:568px; top:322px; width:118px; height:108px;"></div>
@@ -462,7 +557,7 @@
 
   <div class="vignette"></div>
 
-  <!-- VHS EFFECTS -->
+  <!-- VHS EFFECTS (on top of hotspots so the aesthetic is global) -->
   <div class="scanlines"></div>
   <div class="vhs-chroma"></div>
   <div class="vhs-glitch"></div>
@@ -484,7 +579,20 @@
     <div class="welcome-heading" id="welcome-heading">The Groove Shelf</div>
     <div class="welcome-body" id="welcome-body"></div>
     <button class="welcome-btn" id="welcome-btn" onclick="nextWelcome()"></button>
-    <div class="welcome-step" id="welcome-step">1 / 2</div>
+    <div class="welcome-step" id="welcome-step">1 / 3</div>
+  </div>
+</div>
+
+<!-- WALKTHROUGH OVERLAY -->
+<div id="wt-overlay">
+  <div id="wt-dim"></div>
+  <div id="wt-spotlight"></div>
+  <div id="wt-arrow">▼</div>
+  <div id="wt-bubble">
+    <div id="wt-bubble-eyebrow"></div>
+    <div id="wt-bubble-title"></div>
+    <div id="wt-bubble-body"></div>
+    <button id="wt-bubble-btn" onclick="wtNext()"></button>
   </div>
 </div>
 
@@ -510,7 +618,7 @@
   <div class="modal-card">
     <button class="modal-close" onclick="closeModal()">✕</button>
 
-    <!-- Read Full Review banner-->
+    <!-- Read Full Review banner (top of card) -->
     <div id="review-banner" onclick="openBlog(currentAlbumId)" style="
       cursor:pointer;
       background: linear-gradient(90deg, rgba(245,200,66,0.08), rgba(245,200,66,0.15), rgba(245,200,66,0.08));
@@ -647,8 +755,7 @@
 </div>
 
 <script>
-
-// ── ALBUM DATA ──────────────────────────────
+// ── ALBUM DATA (from summary_card - Booklet.pdf) ──────────────────────────────
 const albums = {
   1: {
     title: "23",
@@ -749,7 +856,7 @@ const albums = {
   }
 };
 
-// ── FULL REVIEW DATA  ──────
+// ── FULL REVIEW DATA (from JSON files) ───────────────────────────────────────
 const reviews = {
   hyukoh_23_review: {
     meta: { title: "23: Hyukoh and the Duality of Youth", author: "Mark Laurence G. Ting", course: "IDS 121.15i - K", date: "2017" },
@@ -804,7 +911,7 @@ const reviews = {
   }
 };
 
-// ── STAR RATING HELPER ────
+// ── STAR RATING HELPER ────────────────────────────────────────────────────────
 function renderStars(ratingStr, containerId) {
   const val = parseFloat(ratingStr) || 0;
   const max = 5;
@@ -819,7 +926,7 @@ function renderStars(ratingStr, containerId) {
 
 let currentAlbumId = null;
 
-// ── TOOLTIP LABELS ──────
+// ── TOOLTIP LABELS ────────────────────────────────────────────────────────────
 const labels = {
   1: 'HYUKOH — 23',
   2: 'Tyler, the Creator — CHROMAKOPIA',
@@ -828,7 +935,7 @@ const labels = {
   about: 'About Us'
 };
 
-// ── OPEN SUMMARY CARD ─────
+// ── OPEN SUMMARY CARD ─────────────────────────────────────────────────────────
 function openModal(id) {
   currentAlbumId = id;
   const a = albums[id];
@@ -849,7 +956,6 @@ function openModal(id) {
     artEl.innerHTML = '';
     artEl.style.background = a.color;
   }
-  
   // Spotify button
   const spotifyEl = document.getElementById('modal-spotify');
   if (a.spotify) {
@@ -890,7 +996,7 @@ document.getElementById('modal-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('modal-overlay')) closeModal();
 });
 
-// ── ABOUT MODAL ─────
+// ── ABOUT MODAL ───────────────────────────────────────────────────────────────
 function openAbout() {
   document.getElementById('about-overlay').classList.add('open');
 }
@@ -901,7 +1007,7 @@ document.getElementById('about-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('about-overlay')) closeAbout();
 });
 
-// ── OPEN BLOG ───
+// ── OPEN BLOG — fetches full JSON from reviews/ folder ────────────────────────
 function openBlog(id) {
   const a = albums[id];
   const path = 'reviews/' + a.reviewFile + '.json';
@@ -910,7 +1016,7 @@ function openBlog(id) {
     .then(r => { if (!r.ok) throw new Error('Not found'); return r.json(); })
     .then(data => renderBlog(data))
     .catch(() => {
-
+      // fallback: use the inline truncated review data
       renderBlog(reviews[a.reviewFile]);
     });
 
@@ -936,7 +1042,7 @@ function renderBlog(data) {
     html += `<div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:40px;padding-bottom:20px;border-bottom:1px solid rgba(106,64,32,0.4);font-family:'VT323',monospace;font-size:15px;color:rgba(200,160,80,0.65);letter-spacing:1px;">${bylineParts.map(p=>`<span>${p}</span>`).join('<span>·</span>')}</div>`;
   }
 
-  // Album description block 
+  // Album description block (Planet Her style)
   if (data.albumDescription) {
     html += `<div style="font-family:'VT323',monospace;font-size:12px;letter-spacing:1.5px;color:rgba(245,200,66,0.5);text-transform:uppercase;margin-bottom:8px;margin-top:20px;">Album Description</div>`;
     html += `<div style="background:rgba(245,200,66,0.05);border-left:3px solid rgba(245,200,66,0.3);padding:14px 16px;font-size:13px;line-height:1.8;color:rgba(240,232,208,0.75);margin-bottom:24px;">${data.albumDescription.summary}</div>`;
@@ -989,7 +1095,7 @@ function closeBlog() {
   document.getElementById('blog-overlay').style.display = 'none';
 }
 
-// ── HOTSPOT INTERACTIONS ────
+// ── HOTSPOT INTERACTIONS ──────────────────────────────────────────────────────
 const tooltip = document.getElementById('tooltip');
 document.querySelectorAll('.hotspot').forEach(el => {
   const id = el.dataset.id;
@@ -1008,8 +1114,16 @@ document.querySelectorAll('.hotspot').forEach(el => {
   el.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
 });
 
-// ── WELCOME CARDS ─────
+// ── WELCOME CARDS ─────────────────────────────────────────────────────────────
 const welcomeSlides = [
+  {
+    eyebrow: "Before You Begin",
+    heading: "Best Viewed on Laptop or PC",
+    body: `<p style="text-align:center;font-size:22px;margin-bottom:8px;">💻</p>
+           <p>This experience was designed for a desktop or laptop screen. On mobile, things may look a little off — the shelf, the hotspots, and the overall vibe work best on a wider display.</p>
+           <p>If you're on a phone or tablet, feel free to peek around, but we recommend coming back on a bigger screen for the full experience.</p>`,
+    btn: "Got It →"
+  },
   {
     eyebrow: "Welcome",
     heading: "The Groove Shelf",
@@ -1022,19 +1136,28 @@ const welcomeSlides = [
     heading: "Come In & Stay Awhile",
     body: `<p>Everyone is welcome to step into our little vinyl café and explore the albums on our shelves. But this space is especially for those who crave a slower, more intentional way of listening — those who would enjoy sitting with an album while reading along, letting the review deepen and enrich the experience of each track.</p>
            <p>Are you the type who lingers over album covers, reads lyrics like poetry, or lets a record play from start to finish without interruption? If that sounds like you, then come in and stay awhile. You're in the right place.</p>`,
-    btn: "Enter the Shelf ▶"
+    btn: "Show Me Around →"
   }
 ];
 
 let welcomeStep = 0;
+let audioStarted = false;
 
 function nextWelcome() {
+  if (!audioStarted) {
+    audioStarted = true;
+    sndInsert.play().catch(()=>{});
+    setTimeout(() => { playCrackleLoop(); }, 3000);
+  }
   welcomeStep++;
   if (welcomeStep >= welcomeSlides.length) {
     const ov = document.getElementById('welcome-overlay');
     ov.style.transition = 'opacity 0.5s ease';
     ov.style.opacity = '0';
-    setTimeout(() => { ov.style.display = 'none'; }, 500);
+    setTimeout(() => {
+      ov.style.display = 'none';
+      startWalkthrough(); // launch interactive tour
+    }, 500);
     return;
   }
   showWelcome(welcomeStep);
@@ -1058,22 +1181,50 @@ function showWelcome(i) {
 // Init first slide
 showWelcome(0);
 
-// ── AUDIO ───────
+// ── AUDIO ─────────────────────────────────────────────────────────────────────
 const sndInsert = document.getElementById('snd-insert');
 
-const sndCrackle = new Audio('music/crackle.wav');
-sndCrackle.loop   = true;
-sndCrackle.volume = 0.12;
+let crackleCtx = null, crackleSource = null, crackleBuffer = null;
+
+function loadCrackle() {
+  try {
+    crackleCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', 'music/crackle.wav', true);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = () => {
+      crackleCtx.decodeAudioData(xhr.response, buf => {
+        crackleBuffer = buf;
+      });
+    };
+    xhr.send();
+  } catch(e) {}
+}
+
+function playCrackleLoop() {
+  if (!crackleCtx || !crackleBuffer) return;
+  if (crackleSource) { try { crackleSource.stop(); } catch(e){} }
+  const gainNode = crackleCtx.createGain();
+  gainNode.gain.value = 0.12;
+  gainNode.connect(crackleCtx.destination);
+  crackleSource = crackleCtx.createBufferSource();
+  crackleSource.buffer = crackleBuffer;
+  crackleSource.loop = true;
+  crackleSource.connect(gainNode);
+  crackleSource.start(0);
+}
+
+loadCrackle(); 
 
 let sndAlbum     = new Audio();
 let masterVolume = 0.75;
 let isPlaying    = false;
 
 const albumMeta = {
-  1: { title: '23',                              artist: 'Hyukoh' },
-  2: { title: 'CHROMAKOPIA',                     artist: 'Tyler, the Creator' },
+  1: { title: '23',                             artist: 'Hyukoh' },
+  2: { title: 'CHROMAKOPIA',                    artist: 'Tyler, the Creator' },
   3: { title: 'Kiss All The Time. Disco, Occ.', artist: 'Harry Styles' },
-  4: { title: 'Planet Her',                      artist: 'Doja Cat' }
+  4: { title: 'Planet Her',                     artist: 'Doja Cat' }
 };
 
 const albumTracks = {
@@ -1082,12 +1233,6 @@ const albumTracks = {
   3: 'music/harry_styles.mp3',
   4: 'music/doja_cat.mp3'
 };
-
-// Play insert sfx then crackle after 3s
-window.addEventListener('load', () => {
-  sndInsert.play().catch(()=>{});
-  setTimeout(() => { sndCrackle.play().catch(()=>{}); }, 3000);
-});
 
 function playAlbumTrack(id) {
   const src  = albumTracks[id];
@@ -1106,7 +1251,7 @@ function playAlbumTrack(id) {
   document.getElementById('np-playpause').textContent = '⏸';
   document.getElementById('now-playing').classList.add('visible');
 
-  // When track ends revert button
+  // When track ends, revert button
   sndAlbum.onended = () => {
     isPlaying = false;
     document.getElementById('np-playpause').textContent = '▶';
@@ -1134,7 +1279,148 @@ function setMasterVolume(val) {
   icon.textContent = masterVolume === 0 ? '🔇' : masterVolume < 0.4 ? '🔈' : '🔊';
 }
 
-// ── SCALE WRAPPER ──────
+// ── WALKTHROUGH ───────────────────────────────────────────────────────────────
+let wtStep = 0;
+let wtModalOpenTimer = null;
+
+const wtSteps = [
+  {
+    // Step 1
+    eyebrow: "Step 1 · Browse the Albums",
+    title: "Hover & Click an Album",
+    body: "See the glowing slots on the shelf? Hover over one to reveal its name, then click to open its review card and start playing.",
+    btn: "Got It →",
+    target: () => document.querySelector('.hotspot[data-id="1"]'),
+    bubbleSide: 'right',
+    arrowDir: '◀',
+    onEnter: () => {},
+    onExit: () => {}
+  },
+  {
+    // Step 2
+    eyebrow: "Step 2 · Read the Review",
+    title: "Open the Full Blog",
+    body: "Once the card is open, hit the glowing bar at the top to read the complete review — track by track, with references.",
+    btn: "Next →",
+    target: () => document.getElementById('review-banner'),
+    bubbleSide: 'below',
+    arrowDir: '▲',
+    onEnter: () => {
+
+      openModal(1);
+
+      wtModalOpenTimer = setTimeout(() => {
+        const banner = document.getElementById('review-banner');
+        if (banner) banner.classList.add('wt-highlight-banner');
+        wtPositionToTarget(document.getElementById('review-banner'), 'below', '▲');
+      }, 2500);
+    },
+    onExit: () => {
+      clearTimeout(wtModalOpenTimer);
+      const banner = document.getElementById('review-banner');
+      if (banner) banner.classList.remove('wt-highlight-banner');
+      closeModal();
+    }
+  },
+  {
+    // Step 3
+    eyebrow: "Step 3 · Find Us",
+    title: "Contact the Team",
+    body: "That glowing spot near the bottom? Click it to meet the four of us and find our contact details — reach out anytime.",
+    btn: "Enter the Shelf ▶",
+    target: () => document.querySelector('.hotspot[data-id="about"]'),
+    bubbleSide: 'left',
+    arrowDir: '▶',
+    onEnter: () => {},
+    onExit: () => {}
+  }
+];
+
+function startWalkthrough() {
+  wtStep = 0;
+  document.getElementById('wt-overlay').classList.add('active');
+  wtShowStep(0);
+}
+
+function wtShowStep(i) {
+  const step = wtSteps[i];
+  step.onEnter();
+
+  document.getElementById('wt-bubble-eyebrow').textContent = step.eyebrow;
+  document.getElementById('wt-bubble-title').textContent   = step.title;
+  document.getElementById('wt-bubble-body').textContent    = step.body;
+  document.getElementById('wt-bubble-btn').textContent     = step.btn;
+  document.getElementById('wt-arrow').textContent          = step.arrowDir;
+
+  // wait 2.5s before positioning to target
+  const delay = (i === 1) ? 2600 : 0;
+  setTimeout(() => {
+    const targetEl = step.target();
+    if (targetEl) wtPositionToTarget(targetEl, step.bubbleSide, step.arrowDir);
+  }, delay);
+}
+
+function wtPositionToTarget(targetEl, side, arrowDir) {
+  if (!targetEl) return;
+  const r = targetEl.getBoundingClientRect();
+  const spotlight = document.getElementById('wt-spotlight');
+  const bubble    = document.getElementById('wt-bubble');
+  const arrow     = document.getElementById('wt-arrow');
+  const pad = 8;
+  const bw = 270, bh = 200; // bubble estimated size
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const margin = 12; // min distance from edge
+
+  // Position spotlight over target
+  spotlight.style.left   = (r.left - pad) + 'px';
+  spotlight.style.top    = (r.top  - pad) + 'px';
+  spotlight.style.width  = (r.width  + pad*2) + 'px';
+  spotlight.style.height = (r.height + pad*2) + 'px';
+
+  let bLeft, bTop, aLeft, aTop;
+
+  if (side === 'right') {
+    bLeft = r.right + 20;
+    bTop  = r.top + r.height/2 - bh/2;
+    aLeft = r.right + 4;
+    aTop  = r.top + r.height/2 - 12;
+    arrow.textContent = '◀';
+  } else if (side === 'left') {
+    bLeft = r.left - bw - 20;
+    bTop  = r.top + r.height/2 - bh/2;
+    aLeft = r.left - 30;
+    aTop  = r.top + r.height/2 - 12;
+    arrow.textContent = '▶';
+  } else if (side === 'below') {
+    bLeft = r.left + r.width/2 - bw/2;
+    bTop  = r.bottom + 30;
+    aLeft = r.left + r.width/2 - 12;
+    aTop  = r.bottom + 8;
+    arrow.textContent = '▲';
+  }
+
+  bLeft = Math.max(margin, Math.min(bLeft, vw - bw - margin));
+  bTop  = Math.max(margin, Math.min(bTop,  vh - bh - margin));
+
+  bubble.style.left = bLeft + 'px';
+  bubble.style.top  = bTop  + 'px';
+  arrow.style.left  = aLeft + 'px';
+  arrow.style.top   = aTop  + 'px';
+}
+
+function wtNext() {
+  const step = wtSteps[wtStep];
+  step.onExit();
+  wtStep++;
+  if (wtStep >= wtSteps.length) {
+    // Done — close walkthrough
+    document.getElementById('wt-overlay').classList.remove('active');
+    return;
+  }
+  wtShowStep(wtStep);
+}
+
+// ── SCALE WRAPPER ─────────────────────────────────────────────────────────────
 function scaleWrapper() {
   const wrapper = document.getElementById('image-wrapper');
   const scale = Math.max(window.innerWidth / 1920, window.innerHeight / 1080);
@@ -1146,7 +1432,7 @@ function scaleWrapper() {
 scaleWrapper();
 window.addEventListener('resize', scaleWrapper);
 
-// ── VHS TIMECODE ──────
+// ── VHS TIMECODE ──────────────────────────────────────────────────────────────
 function pad(n) { return String(n).padStart(2,'0'); }
 let secs = 0;
 setInterval(() => {
